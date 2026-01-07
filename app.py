@@ -8,10 +8,11 @@ st.set_page_config(page_title="Forex Trading Journal", layout="centered")
 
 DATA_FILE = "trades.csv"
 
+# Create image folders safely
 os.makedirs("images/before", exist_ok=True)
 os.makedirs("images/after", exist_ok=True)
 
-# ---------------- LOGIN ----------------
+# ---------------- LOGIN SYSTEM ----------------
 def check_user(username, password):
     try:
         with open("users.csv", newline="") as file:
@@ -44,10 +45,10 @@ menu = st.sidebar.radio("Menu", ["Add Trade", "Journal Stats"])
 if menu == "Add Trade":
     st.title("📝 Add Trade")
 
-    pair = st.text_input("Pair (EURUSD, XAUUSD etc)")
+    pair = st.text_input("Pair (EURUSD, XAUUSD, etc)")
     direction = st.selectbox("Direction", ["Buy", "Sell"])
     risk = st.number_input("Risk %", min_value=0.1, value=1.0)
-    rr = st.number_input("RR (loss = -1, BE = 0, win = 2)", value=1.0)
+    rr = st.number_input("RR (Loss = -1 | BE = 0 | Win = 2)", value=1.0)
     notes = st.text_area("Notes")
 
     before_img = None
@@ -55,10 +56,10 @@ if menu == "Add Trade":
 
     if is_paid_user:
         st.markdown("### 📸 Trade Images (Paid)")
-        before_img = st.file_uploader("Before Image", type=["png","jpg","jpeg"])
-        after_img = st.file_uploader("After Image", type=["png","jpg","jpeg"])
+        before_img = st.file_uploader("Before Trade Image", type=["png", "jpg", "jpeg"])
+        after_img = st.file_uploader("After Trade Image", type=["png", "jpg", "jpeg"])
     else:
-        st.info("Image upload is Paid feature")
+        st.info("🔒 Image upload is a Paid Feature")
 
     if st.button("Save Trade"):
         date_time = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -101,7 +102,7 @@ if menu == "Add Trade":
             writer = csv.writer(file)
             writer.writerow(trade)
 
-        st.success("✅ Trade Saved")
+        st.success("✅ Trade Saved Successfully")
 
 # ---------------- JOURNAL STATS ----------------
 elif menu == "Journal Stats":
@@ -114,38 +115,40 @@ elif menu == "Journal Stats":
             for row in reader:
                 trades.append(row)
     except:
+        st.info("No trades yet")
         st.stop()
 
     if not trades:
         st.info("No trades yet")
         st.stop()
 
+    # ----- BASIC STATS -----
     total = len(trades)
     wins = len([t for t in trades if t["Result"] == "Win"])
-    winrate = wins / total * 100
+    winrate = (wins / total) * 100
     avg_rr = sum(float(t["RR"]) for t in trades) / total
 
     st.metric("Total Trades", total)
     st.metric("Winrate %", round(winrate, 2))
     st.metric("Average RR", round(avg_rr, 2))
 
-    # Equity Curve
-    st.subheader("📈 Equity Curve (R)")
+    # ----- EQUITY CURVE -----
+    st.subheader("📈 Equity Curve (R-based)")
     equity = []
-    total_r = 0
+    running = 0
     for t in trades:
-        total_r += float(t["RR"])
-        equity.append(total_r)
+        running += float(t["RR"])
+        equity.append(running)
     st.line_chart(equity)
 
-    # Loss Analysis
+    # ----- LOSS ANALYSIS -----
     st.subheader("🔻 Loss Trades")
     losses = [t for t in trades if t["Result"] == "Loss"]
     st.metric("Total Losses", len(losses))
     if losses:
         st.dataframe(losses[::-1])
 
-    # Image Review
+    # ----- IMAGE REVIEW (SAFE FOR CLOUD) -----
     st.subheader("🖼️ Trade Image Review")
 
     labels = [
@@ -157,16 +160,26 @@ elif menu == "Journal Stats":
     trade = trades[labels.index(selected)]
 
     col1, col2 = st.columns(2)
+
     with col1:
-        st.markdown("**Before**")
-        if is_paid_user and trade["BeforeImage"]:
+        st.markdown("**Before Trade**")
+        if (
+            is_paid_user
+            and trade.get("BeforeImage")
+            and os.path.exists(trade["BeforeImage"])
+        ):
             st.image(trade["BeforeImage"], width=300)
         else:
-            st.info("Paid / No Image")
+            st.info("No before image")
 
     with col2:
-        st.markdown("**After**")
-        if is_paid_user and trade["AfterImage"]:
+        st.markdown("**After Trade**")
+        if (
+            is_paid_user
+            and trade.get("AfterImage")
+            and os.path.exists(trade["AfterImage"])
+        ):
             st.image(trade["AfterImage"], width=300)
         else:
-            st.info("Paid / No Image")
+            st.info("No after image")
+
