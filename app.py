@@ -8,11 +8,17 @@ st.set_page_config(page_title="Forex Trading Journal", layout="centered")
 
 DATA_FILE = "trades.csv"
 
-# Create image folders safely
 os.makedirs("images/before", exist_ok=True)
 os.makedirs("images/after", exist_ok=True)
 
-# ---------------- LOGIN SYSTEM ----------------
+# ---------------- SESSION STATE ----------------
+if "is_paid_user" not in st.session_state:
+    st.session_state.is_paid_user = False
+
+if "username" not in st.session_state:
+    st.session_state.username = ""
+
+# ---------------- LOGIN CHECK ----------------
 def check_user(username, password):
     try:
         with open("users.csv", newline="") as file:
@@ -28,16 +34,31 @@ def check_user(username, password):
         return False
     return False
 
-st.sidebar.markdown("### 🔐 Paid User Login")
-username = st.sidebar.text_input("Username")
-password = st.sidebar.text_input("Password", type="password")
+# ---------------- SIDEBAR LOGIN ----------------
+st.sidebar.markdown("## 🔐 User Login")
 
-login_clicked = st.sidebar.button("Enter")
+if not st.session_state.is_paid_user:
+    username_input = st.sidebar.text_input("Username")
+    password_input = st.sidebar.text_input("Password", type="password")
 
-if is_paid_user:
-    st.sidebar.success("✅ Paid User")
+    login_btn = st.sidebar.button("Enter")
+
+    if login_btn:
+        if check_user(username_input, password_input):
+            st.session_state.is_paid_user = True
+            st.session_state.username = username_input
+            st.sidebar.success("✅ Login Successful")
+        else:
+            st.sidebar.error("❌ Invalid username or password")
 else:
-    st.sidebar.warning("🔒 Free User")
+    st.sidebar.success(f"✅ Logged in as {st.session_state.username}")
+    logout_btn = st.sidebar.button("Logout")
+
+    if logout_btn:
+        st.session_state.is_paid_user = False
+        st.session_state.username = ""
+        st.sidebar.info("Logged out successfully")
+        st.experimental_rerun()
 
 menu = st.sidebar.radio("Menu", ["Add Trade", "Journal Stats"])
 
@@ -54,12 +75,12 @@ if menu == "Add Trade":
     before_img = None
     after_img = None
 
-    if is_paid_user:
-        st.markdown("### 📸 Trade Images (Paid)")
+    if st.session_state.is_paid_user:
+        st.markdown("### 📸 Trade Images (Paid Feature)")
         before_img = st.file_uploader("Before Trade Image", type=["png", "jpg", "jpeg"])
         after_img = st.file_uploader("After Trade Image", type=["png", "jpg", "jpeg"])
     else:
-        st.info("🔒 Image upload is a Paid Feature")
+        st.info("🔒 Login required to upload images")
 
     if st.button("Save Trade"):
         date_time = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -102,7 +123,7 @@ if menu == "Add Trade":
             writer = csv.writer(file)
             writer.writerow(trade)
 
-        st.success("✅ Trade Saved Successfully")
+        st.success("✅ Trade saved successfully")
 
 # ---------------- JOURNAL STATS ----------------
 elif menu == "Journal Stats":
@@ -122,7 +143,6 @@ elif menu == "Journal Stats":
         st.info("No trades yet")
         st.stop()
 
-    # ----- BASIC STATS -----
     total = len(trades)
     wins = len([t for t in trades if t["Result"] == "Win"])
     winrate = (wins / total) * 100
@@ -132,8 +152,8 @@ elif menu == "Journal Stats":
     st.metric("Winrate %", round(winrate, 2))
     st.metric("Average RR", round(avg_rr, 2))
 
-    # ----- EQUITY CURVE -----
-    st.subheader("📈 Equity Curve (R-based)")
+    # Equity Curve
+    st.subheader("📈 Equity Curve (R)")
     equity = []
     running = 0
     for t in trades:
@@ -141,14 +161,14 @@ elif menu == "Journal Stats":
         equity.append(running)
     st.line_chart(equity)
 
-    # ----- LOSS ANALYSIS -----
+    # Loss Trades
     st.subheader("🔻 Loss Trades")
     losses = [t for t in trades if t["Result"] == "Loss"]
     st.metric("Total Losses", len(losses))
     if losses:
         st.dataframe(losses[::-1])
 
-    # ----- IMAGE REVIEW (SAFE FOR CLOUD) -----
+    # Image Review
     st.subheader("🖼️ Trade Image Review")
 
     labels = [
@@ -164,23 +184,21 @@ elif menu == "Journal Stats":
     with col1:
         st.markdown("**Before Trade**")
         if (
-            is_paid_user
+            st.session_state.is_paid_user
             and trade.get("BeforeImage")
             and os.path.exists(trade["BeforeImage"])
         ):
             st.image(trade["BeforeImage"], width=300)
         else:
-            st.info("No before image")
+            st.info("No before image / Login required")
 
     with col2:
         st.markdown("**After Trade**")
         if (
-            is_paid_user
+            st.session_state.is_paid_user
             and trade.get("AfterImage")
             and os.path.exists(trade["AfterImage"])
         ):
             st.image(trade["AfterImage"], width=300)
         else:
-            st.info("No after image")
-
-
+            st.info("No after image / Login required")
