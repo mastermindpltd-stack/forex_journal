@@ -32,7 +32,7 @@ st.sidebar.markdown("### 🔐 Paid User Login")
 username = st.sidebar.text_input("Username")
 password = st.sidebar.text_input("Password", type="password")
 
-is_paid_user = check_user(username, password)
+login_clicked = st.sidebar.button("Enter")
 
 if is_paid_user:
     st.sidebar.success("✅ Paid User")
@@ -182,4 +182,5 @@ elif menu == "Journal Stats":
             st.image(trade["AfterImage"], width=300)
         else:
             st.info("No after image")
+
 
